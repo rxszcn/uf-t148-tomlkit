@@ -32,6 +32,8 @@ from tomlkit._types import _CustomInt
 from tomlkit._types import _CustomList
 from tomlkit._utils import CONTROL_CHARS
 from tomlkit._utils import escape_string
+from tomlkit._utils import normalize_comment
+from tomlkit._utils import render_comment
 from tomlkit._utils import validate_comment
 from tomlkit.exceptions import ConvertError
 from tomlkit.exceptions import InvalidStringError
@@ -672,11 +674,11 @@ class Comment(Item):
 
     def as_string(self) -> str:
         return (
-            f"{self._trivia.indent}{decode(self._trivia.comment)}{self._trivia.trail}"
+            f"{self._trivia.indent}{normalize_comment(self._trivia.comment)}{self._trivia.trail}"
         )
 
     def __str__(self) -> str:
-        return f"{self._trivia.indent}{decode(self._trivia.comment)}"
+        return f"{self._trivia.indent}{normalize_comment(self._trivia.comment)}"
 
 
 class Integer(Item, _CustomInt):
@@ -2265,7 +2267,7 @@ class InlineTable(AbstractTable):
                 )
             buf += f"{v.trivia.indent}{rendered}"
             last_value_end = len(buf)
-            buf += f"{v.trivia.comment}{v_trivia_trail}"
+            buf += f"{normalize_comment(v.trivia.comment)}{v_trivia_trail}"
             emitted_key = True
             pending_separator = False
             if has_explicit_commas:
@@ -2299,7 +2301,7 @@ class InlineTable(AbstractTable):
                 trail = v.trivia.trail.replace("\n", "")
                 parts.append(
                     f"{prefix}{v.trivia.indent}{k.as_string()}{k.sep}{v.as_string()}"
-                    f"{v.trivia.comment_ws}{v.trivia.comment}{trail}"
+                    f"{render_comment(v.trivia.comment, v.trivia.comment_ws)}{trail}"
                 )
         if not parts:
             # every key under the prefix was removed, keep it as an empty table

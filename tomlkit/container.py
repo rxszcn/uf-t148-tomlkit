@@ -14,6 +14,7 @@ if TYPE_CHECKING:
 from tomlkit._compat import decode
 from tomlkit._types import _CustomDict
 from tomlkit._utils import merge_dicts
+from tomlkit._utils import render_comment
 from tomlkit.exceptions import InvalidStringError
 from tomlkit.exceptions import KeyAlreadyPresent
 from tomlkit.exceptions import NonExistentKey
@@ -96,8 +97,7 @@ def _render_empty_aot(key: str, aot: AoT) -> str:
         f"{aot.trivia.indent}"
         f"{decode(key)}"
         f" = []"
-        f"{aot.trivia.comment_ws}"
-        f"{decode(aot.trivia.comment)}"
+        f"{render_comment(aot.trivia.comment, aot.trivia.comment_ws)}"
         f"{aot.trivia.trail or chr(10)}"
     )
 
@@ -716,8 +716,7 @@ class Container(_CustomDict):  # type: ignore[type-arg]
                 f"{open_}"
                 f"{decode(_key)}"
                 f"{close}"
-                f"{table.trivia.comment_ws}"
-                f"{decode(table.trivia.comment)}"
+                f"{render_comment(table.trivia.comment, table.trivia.comment_ws)}"
                 f"{table.trivia.trail}"
                 f"{newline_in_table_trivia}"
             )
@@ -786,8 +785,7 @@ class Container(_CustomDict):  # type: ignore[type-arg]
             f"{open_}"
             f"{decode(_key)}"
             f"{close}"
-            f"{table.trivia.comment_ws}"
-            f"{decode(table.trivia.comment)}"
+            f"{render_comment(table.trivia.comment, table.trivia.comment_ws)}"
             f"{table.trivia.trail}"
         )
 
@@ -829,8 +827,7 @@ class Container(_CustomDict):  # type: ignore[type-arg]
             f"{decode(_key)}"
             f"{key.sep}"
             f"{decode(item.as_string())}"
-            f"{item.trivia.comment_ws}"
-            f"{decode(item.trivia.comment)}"
+            f"{render_comment(item.trivia.comment, item.trivia.comment_ws)}"
             f"{item.trivia.trail}"
         )
 

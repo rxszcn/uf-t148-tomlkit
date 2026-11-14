@@ -1334,6 +1334,126 @@ def test_comment_method_keeps_existing_hash_prefix() -> None:
     assert doc.as_string() == "x = 1 # already a comment\n"
 
 
+def test_comment_method_still_rejects_control_characters() -> None:
+    doc = api.document()
+    doc["x"] = 1
+    with pytest.raises(ValueError, match="control character"):
+        doc["x"].comment("bell\x07here")
+    assert doc.as_string() == "x = 1\n"
+
+
+def test_direct_comment_assignment_matches_helper_value_row() -> None:
+    direct = parse("a = 1\n")
+    direct["a"].trivia.comment = "lineage: src"
+    helper = parse("a = 1\n")
+    helper["a"].comment("lineage: src")
+
+    assert direct.as_string() == helper.as_string() == "a = 1 # lineage: src\n"
+    assert parse(direct.as_string())["a"] == 1
+
+
+def test_direct_comment_assignment_matches_helper_table_header() -> None:
+    direct = parse("[t]\nx = 1\n")
+    direct["t"].trivia.comment = "owner: zq"
+    helper = parse("[t]\nx = 1\n")
+    helper["t"].comment("owner: zq")
+
+    assert direct.as_string() == helper.as_string() == "[t] # owner: zq\nx = 1\n"
+    assert parse(direct.as_string())["t"]["x"] == 1
+
+
+def test_direct_comment_assignment_matches_helper_aot_header() -> None:
+    direct = parse("[[p]]\nx = 1\n")
+    direct["p"][0].trivia.comment = "hdr"
+    helper = parse("[[p]]\nx = 1\n")
+    helper["p"][0].comment("hdr")
+
+    assert direct.as_string() == helper.as_string() == "[[p]] # hdr\nx = 1\n"
+    assert parse(direct.as_string())["p"][0]["x"] == 1
+
+
+def test_direct_comment_assignment_matches_helper_multiline_array_comment() -> None:
+    helper = api.array().multiline(True)
+    helper.add_line(1, comment="first")
+    direct = api.array().multiline(True)
+    direct.add_line(1, comment="first")
+    # strip the prefix again through the public attribute, as a direct
+    # assignment would
+    direct._value[0].comment.trivia.comment = "first"
+
+    assert direct.as_string() == helper.as_string()
+    doc = parse(f"a = {direct.as_string()}\n")
+    assert doc["a"] == [1]
+
+
+def test_direct_comment_assignment_matches_helper_standalone_comment() -> None:
+    helper = api.document()
+    helper.add(api.comment("hello"))
+    direct = api.document()
+    comment = api.comment("hello")
+    comment.trivia.comment = "hello"
+    direct.add(comment)
+
+    assert direct.as_string() == helper.as_string() == "# hello\n"
+    parse(direct.as_string())
+
+
+def test_direct_comment_assignment_matches_helper_inline_table() -> None:
+    direct = parse("t = {a = 1}\n")
+    direct["t"]["a"].trivia.comment = "x"
+    helper = parse("t = {a = 1}\n")
+    helper["t"]["a"].comment("x")
+
+    assert direct.as_string() == helper.as_string()
+
+
+def test_direct_comment_assignment_matches_helper_dotted_key_in_inline_table() -> (
+    None
+):
+    direct = parse("t = {a.b = 1}\n")
+    direct["t"]["a"]["b"].trivia.comment = "x"
+    helper = parse("t = {a.b = 1}\n")
+    helper["t"]["a"]["b"].comment("x")
+
+    assert direct.as_string() == helper.as_string() == "t = {a.b = 1 # x}\n"
+
+
+def test_direct_comment_assignment_matches_helper_empty_aot_fallback() -> None:
+    direct = parse("[[p]]\nx = 1\n")
+    direct["p"].pop(0)
+    direct["p"].trivia.comment = "x"
+    helper = parse("[[p]]\nx = 1\n")
+    helper["p"].pop(0)
+    helper["p"].comment("x")
+
+    assert direct.as_string() == helper.as_string() == "p = [] # x\n"
+    assert parse(direct.as_string())["p"] == []
+
+
+def test_direct_comment_assignment_respects_recorded_comment_ws() -> None:
+    doc = parse("a = 1\n")
+    doc["a"].trivia.comment_ws = "  "
+    doc["a"].trivia.comment = "x"
+
+    assert doc.as_string() == "a = 1  # x\n"
+
+
+def test_direct_comment_assignment_with_hash_prefix_is_not_touched() -> None:
+    # a parsed tight comment round-trips byte-for-byte: no whitespace is
+    # injected for comments already carrying the prefix
+    doc = parse("a = 1# tight\n")
+    assert doc.as_string() == "a = 1# tight\n"
+
+    # same for a direct assignment that includes the prefix itself
+    doc = parse("a = 1\n")
+    doc["a"].trivia.comment = "# already"
+    assert doc.as_string() == "a = 1# already\n"
+
+    # and the recorded comment whitespace is preserved verbatim
+    doc = parse("[t]  # spaced\nx = 1\n")
+    assert doc.as_string() == "[t]  # spaced\nx = 1\n"
+
+
 def test_append_table_to_inline_table_raises() -> None:
     table = api.table()
     table.append("a", 1)

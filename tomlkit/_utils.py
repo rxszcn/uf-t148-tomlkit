@@ -132,6 +132,37 @@ def validate_comment(comment: str, *, multiline: bool = False) -> None:
             raise ValueError(f"Comment cannot contain control character {char!r}")
 
 
+def normalize_comment(comment: str) -> str:
+    """Return ``comment`` guaranteed to carry a leading ``#``.
+
+    ``Item.comment()`` prefixes comment text at assignment time, but
+    ``Trivia.comment`` is a plain public attribute and can be assigned
+    directly, bypassing that normalization and producing output that glues
+    the raw text onto the preceding value.  Render exits call this so both
+    paths emit identical, parseable output.  Comments already carrying the
+    prefix are returned verbatim so parsed documents round-trip byte-for-byte.
+    """
+    comment = decode(comment)
+    if not comment or comment.strip().startswith("#"):
+        return comment
+    return f"# {comment}"
+
+
+def render_comment(comment: str, comment_ws: str) -> str:
+    """Combine ``comment_ws`` and ``comment`` into a render-ready segment.
+
+    Mirrors what ``Item.comment()`` stores: text missing the ``#`` prefix
+    gets it prepended, and when no comment whitespace was recorded a single
+    space is supplied so the comment does not stick to the preceding value.
+    Prefixed comments are emitted with their recorded whitespace untouched,
+    keeping parsed documents byte-for-byte stable.
+    """
+    comment = decode(comment)
+    if not comment or comment.strip().startswith("#"):
+        return f"{comment_ws}{comment}"
+    return f"{comment_ws or ' '}# {comment}"
+
+
 def _unicode_escape(seq: str) -> str:
     return "".join(f"\\u{ord(c):04x}" for c in seq)
 
